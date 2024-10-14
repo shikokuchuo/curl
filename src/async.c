@@ -29,11 +29,11 @@ SEXP curl_thread_create(void (*func)(void *), void *arg) {
 }
 
 static void invoke_multi_run(void *arg) {
-  SEXP fn, call;
-  fn = Rf_install("multi_run");
-  PROTECT(call = Rf_lang4(fn, Rf_ScalarInteger(0), Rf_ScalarLogical(0), (SEXP) arg));
+  SEXP func, call;
+  PROTECT(func = Rf_lang3(R_DoubleColonSymbol, Rf_install("curl"), Rf_install("multi_run")));
+  PROTECT(call = Rf_lang4(func, Rf_ScalarInteger(0), Rf_ScalarLogical(0), (SEXP) arg));
   Rf_eval(call, R_GlobalEnv);
-  UNPROTECT(1);
+  UNPROTECT(2);
   err_printf("async operations completed\n");
 }
 
@@ -41,7 +41,6 @@ static void invoke_multi_run(void *arg) {
 static void multi_async_thread(void *arg) {
 
   multi_thread_arg *args = (multi_thread_arg *) arg;
-
   CURLM *multi = args->multi;
 
   int total_pending = -1;
