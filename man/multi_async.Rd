@@ -4,17 +4,26 @@
 \alias{multi_async}
 \title{Event-driven Async Requests}
 \usage{
-multi_async(pool = NULL)
+multi_async(pool)
 }
 \arguments{
-\item{pool}{a multi handle created by \link{new_pool}. Default uses a global pool.}
+\item{pool}{A multi handle created by \link{new_pool}. This must be supplied,
+and there is no default.}
 }
 \value{
 An external pointer to the created thread.
 }
 \description{
-These functions perform all operations to completion asynchronously in a
-non-blocking manner using threading.
+\code{multi_async} is a threaded function that performs all operations to
+completion asynchronously in a non-blocking manner.
+}
+\details{
+This function does not default to the global pool. This helps to ensure that
+other functions are not unintentionally called on it concurrently, as it is
+not safe to do so.
+
+Once this function is called, further actions must not be made on the
+supplied pool until all async operations have completed.
 }
 \examples{
 \dontshow{if (requireNamespace("later", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
@@ -25,16 +34,20 @@ success <- function(x){
 failure <- function(str){
   cat(paste("Failed request:", str, "\n"), file = stderr())
 }
+
+# Create custom pool - required for multi_async()
+pool <- new_pool()
+
 # This handle will take longest (2sec)
 h1 <- new_handle(url = "https://hb.cran.dev/delay/2")
-multi_add(h1, done = success, fail = failure)
+multi_add(h1, done = success, fail = failure, pool = pool)
 
 # This handle raises an error
 h2 <- new_handle(url = "https://urldoesnotexist.xyz")
-multi_add(h2, done = success, fail = failure)
+multi_add(h2, done = success, fail = failure, pool = pool)
 
 # Actually perform the requests
-multi_async()
+multi_async(pool)
 
 # Check the results (after waiting for completion)
 Sys.sleep(3)
