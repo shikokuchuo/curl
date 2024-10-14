@@ -57,6 +57,7 @@ typedef struct {
 
 CURL* get_handle(SEXP ptr);
 reference* get_ref(SEXP ptr);
+multiref* get_multiref(SEXP ptr);
 void assert_status(CURLcode res, reference *ref);
 void assert(CURLcode res);
 void massert(CURLMcode res);
@@ -85,3 +86,8 @@ SEXP reflist_remove(SEXP x, SEXP target);
 #include "libcurl-options-polyfill.h"
 #define HAS_CURL_EASY_OPTION 1
 #endif
+
+/* execlaternative2 from later */
+extern void (*eln2)(void (*)(void *), void *, double, int);
+/* threads from nanonext (for the time being) */
+extern SEXP (*thread_create)(void (*)(void *), void *);

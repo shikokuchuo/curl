@@ -28,13 +28,15 @@ Suggests:
     knitr,
     jsonlite,
     later,
+    nanonext (>= 1.3.0.9000),
     rmarkdown,
     httpuv (>= 1.4.4),
     webutils
 VignetteBuilder: knitr
 Depends:
     R (>= 3.0.0)
-RoxygenNote: 7.3.0
+RoxygenNote: 7.3.2
 Encoding: UTF-8
 Language: en-US
 Roxygen: list(markdown = TRUE)
+Remotes: shikokuchuo/nanonext@shikokuchuo
