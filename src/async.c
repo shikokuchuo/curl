@@ -48,15 +48,21 @@ static void multi_async_thread(void *arg) {
   CURLMcode res;
 
   while (total_pending != 0) {
-    if ((res = curl_multi_wait(multi, NULL, 0, 1000, &numfds)) != CURLM_OK)
-      break;
 
     res = CURLM_CALL_MULTI_PERFORM;
     while (res == CURLM_CALL_MULTI_PERFORM)
       res = curl_multi_perform(multi, &(total_pending));
 
-    if (res != CURLM_OK)
+    if (res != CURLM_OK) {
+      err_printf("curl notok\n");
       break;
+    }
+
+    if ((res = curl_multi_wait(multi, NULL, 0, 1000, &numfds)) != CURLM_OK) {
+      err_printf("curl notok\n");
+      break;
+    }
+
   }
 
   later2(invoke_multi_run, args->ptr);
