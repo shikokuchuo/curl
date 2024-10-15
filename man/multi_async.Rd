@@ -27,32 +27,34 @@ supplied pool until all async operations have completed.
 }
 \examples{
 \dontshow{if (requireNamespace("later", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
-results <- list()
 success <- function(x){
-  results <<- append(results, list(x))
+results <<- append(results, list(x))
 }
+
 failure <- function(str){
-  cat(paste("Failed request:", str, "\n"), file = stderr())
+cat(paste("Failed request:", str, "\n"), file = stderr())
 }
 
-# Create custom pool - required for multi_async()
-pool <- new_pool()
+results <- list()
+pool <- curl::new_pool()
 
-# This handle will take longest (2sec)
+# Create handles
 h1 <- new_handle(url = "https://hb.cran.dev/delay/2")
-multi_add(h1, done = success, fail = failure, pool = pool)
+h2 <- new_handle(url = "https://hb.cran.dev/delay/1")
 
-# This handle raises an error
-h2 <- new_handle(url = "https://urldoesnotexist.xyz")
+# Add handles:
+multi_add(h1, done = success, fail = failure, pool = pool)
 multi_add(h2, done = success, fail = failure, pool = pool)
 
 # Actually perform the requests
-multi_async(pool)
+multi_async(pool = pool)
 
-# Check the results (after waiting for completion)
+# Wait for completion
 Sys.sleep(3)
 later::run_now()
-results
+
+# check all results are present
+length(results)
 \dontshow{\}) # examplesIf}
 }
 \seealso{

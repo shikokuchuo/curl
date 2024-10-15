@@ -16,8 +16,17 @@ static void thread_arg_finalizer(SEXP xptr) {
 
 }
 
-static void err_printf(const char *err, ...) {
-  if (write(STDERR_FILENO, err, strlen(err))) {};
+static void printf_safe(const int err, const char *fmt, ...) {
+
+  char buf[1024];
+  va_list arg_ptr;
+
+  va_start(arg_ptr, fmt);
+  int bytes = vsnprintf(buf, 1024, fmt, arg_ptr);
+  va_end(arg_ptr);
+
+  if (write(err ? STDERR_FILENO : STDOUT_FILENO, buf, (size_t) bytes)) {};
+
 }
 
 void later2(void (*fun)(void *), void *data) {
@@ -34,7 +43,7 @@ static void invoke_multi_run(void *arg) {
   PROTECT(call = Rf_lang4(func, Rf_ScalarInteger(0), Rf_ScalarLogical(0), (SEXP) arg));
   Rf_eval(call, R_GlobalEnv);
   UNPROTECT(2);
-  err_printf("async operations completed\n");
+  Rprintf("called from later: async ops complete\n");
 }
 
 
@@ -44,7 +53,7 @@ static void multi_async_thread(void *arg) {
   CURLM *multi = args->multi;
 
   int total_pending = -1;
-  int numfds;
+  int numfds, count = 0;
   CURLMcode res;
 
   while (total_pending != 0) {
@@ -54,17 +63,19 @@ static void multi_async_thread(void *arg) {
       res = curl_multi_perform(multi, &(total_pending));
 
     if (res != CURLM_OK) {
-      err_printf("curl notok\n");
+      printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
       break;
     }
 
-    if ((res = curl_multi_wait(multi, NULL, 0, 1000, &numfds)) != CURLM_OK) {
-      err_printf("curl notok\n");
+    if ((res = curl_multi_wait(multi, NULL, 0, 10000, &numfds)) != CURLM_OK) {
+      printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
       break;
     }
+    count++;
 
   }
 
+  printf_safe(0, "\nnumber of waits: %d\n", count);
   later2(invoke_multi_run, args->ptr);
 
 }
