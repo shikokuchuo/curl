@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 #include <R.h>
 #include <Rinternals.h>
 #include <unistd.h>
@@ -39,11 +42,12 @@ SEXP curl_thread_create(void (*func)(void *), void *arg) {
 }
 
 static void invoke_multi_run(void *arg) {
-  SEXP func, call;
+  SEXP func, call, pool = (SEXP) arg;
   PROTECT(func = Rf_lang3(R_DoubleColonSymbol, Rf_install("curl"), Rf_install("multi_run")));
-  PROTECT(call = Rf_lang4(func, Rf_ScalarInteger(0), Rf_ScalarLogical(0), (SEXP) arg));
+  PROTECT(call = Rf_lang4(func, Rf_ScalarInteger(0), Rf_ScalarLogical(0), pool));
   Rf_eval(call, R_GlobalEnv);
   UNPROTECT(2);
+  Rf_setAttrib(pool, R_MissingArg, R_NilValue);
   Rprintf("called from later: async ops complete\n");
 }
 
@@ -54,10 +58,34 @@ static void multi_async_thread(void *arg) {
   CURLM *multi = args->multi;
 
   int total_pending = -1;
-  int numfds, count = 0;
+  int maxfd = -1;
+  int count = 0;
   CURLMcode res;
+  fd_set fdread, fdwrite, fdexc;
+
+  res = CURLM_CALL_MULTI_PERFORM;
+  cv_lock(args->cv);
+  while (res == CURLM_CALL_MULTI_PERFORM)
+    res = curl_multi_perform(multi, &(total_pending));
+  cv_unlock(args->cv);
+
+  if (res != CURLM_OK) {
+    printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
+  }
 
   while (total_pending != 0) {
+
+    FD_ZERO(&fdread);
+    FD_ZERO(&fdwrite);
+    FD_ZERO(&fdexc);
+
+    // Get file descriptors for active sockets
+    res = curl_multi_fdset(multi, &fdread, &fdwrite, &fdexc, &maxfd);
+
+    if (maxfd >= 0) {
+      select(maxfd + 1, &fdread, &fdwrite, &fdexc, NULL);
+    }
+    count++;
 
     res = CURLM_CALL_MULTI_PERFORM;
     cv_lock(args->cv);
@@ -69,16 +97,6 @@ static void multi_async_thread(void *arg) {
       printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
       break;
     }
-
-    cv_lock(args->cv);
-    res = curl_multi_wait(multi, NULL, 0, 10000, &numfds);
-    cv_unlock(args->cv);
-
-    if (res != CURLM_OK) {
-      printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
-      break;
-    }
-    count++;
 
   }
 
@@ -125,6 +143,7 @@ SEXP R_multi_async(SEXP pool_ptr, SEXP cv) {
   xptr = R_MakeExternalPtr(args, R_NilValue, R_NilValue);
   Rf_setAttrib(out, R_MissingArg, xptr);
   R_RegisterCFinalizerEx(xptr, thread_arg_finalizer, TRUE);
+  Rf_setAttrib(pool_ptr, R_MissingArg, out);
 
   UNPROTECT(1);
   return out;

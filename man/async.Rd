@@ -4,11 +4,14 @@
 \alias{async}
 \alias{async_run}
 \alias{async_add}
+\alias{async_fdset}
 \title{Event-driven Async Requests}
 \usage{
 async_run(pool)
 
 async_add(handle, done = NULL, fail = NULL, data = NULL, pool)
+
+async_fdset(pool)
 }
 \arguments{
 \item{pool}{A multi handle created by \link{new_pool}. This must be supplied,
@@ -33,18 +36,17 @@ the \code{done} callback (which is usually what you want).}
 For async_run: invisibly, an external pointer to the created thread.
 }
 \description{
-Async family functions modify the multi family to run asynchronously.
+Async family functions are an alternative to the multi family that run
+asynchronously. \code{async_run} is a threaded function that performs all
+operations to completion asynchronously in a non-blocking manner. Async
+functions are thread-safe versions of multi functions, and are otherwise
+identical.
 }
 \details{
-\code{async_run} is a threaded function that performs all operations to
-completion asynchronously in a non-blocking manner.
-
-This function does not default to the global pool. This helps to ensure that
-other functions are not unintentionally called on it concurrently, as it is
-not safe to do so.
-
-\code{async_add} is equivalent to \link{multi_add} but safe to use whilst an
-async operation is ongoing.
+All async functions do not default to the global pool. This helps to ensure
+that multi functions are not inadvertently called on pools used for async
+operations. The use of async and multi functions should never be mixed as the
+multi functions are not thread-safe.
 }
 \examples{
 \dontshow{if (requireNamespace("later", quietly = TRUE) && requireNamespace("nanonext", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
@@ -62,11 +64,12 @@ h2 <- new_handle(url = "https://hb.cran.dev/delay/1")
 async_add(h1, done = success, fail = failure, pool = pool)
 
 # Perform the requests
-thread <- async_run(pool = pool)
+async_run(pool)
 
-# Add second handle, acquiring lock for safety:
+# Add second handle during the async request:
 Sys.sleep(1)
 async_add(h2, done = success, fail = failure, pool = pool)
+async_fdset(pool)
 
 # Wait for completion
 Sys.sleep(3)
