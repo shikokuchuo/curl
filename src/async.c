@@ -5,6 +5,7 @@
 
 typedef struct multi_thread_arg_s {
   SEXP ptr;
+  SEXP cv;
   CURLM *multi;
 } multi_thread_arg;
 
@@ -59,15 +60,21 @@ static void multi_async_thread(void *arg) {
   while (total_pending != 0) {
 
     res = CURLM_CALL_MULTI_PERFORM;
+    cv_lock(args->cv);
     while (res == CURLM_CALL_MULTI_PERFORM)
       res = curl_multi_perform(multi, &(total_pending));
+    cv_unlock(args->cv);
 
     if (res != CURLM_OK) {
       printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
       break;
     }
 
-    if ((res = curl_multi_wait(multi, NULL, 0, 10000, &numfds)) != CURLM_OK) {
+    cv_lock(args->cv);
+    res = curl_multi_wait(multi, NULL, 0, 10000, &numfds);
+    cv_unlock(args->cv);
+
+    if (res != CURLM_OK) {
       printf_safe(1, "curl error: %s\n", curl_easy_strerror(res));
       break;
     }
@@ -80,15 +87,7 @@ static void multi_async_thread(void *arg) {
 
 }
 
-SEXP R_multi_async(SEXP pool_ptr) {
-
-  multiref *mref = get_multiref(pool_ptr);
-  CURLM *multi = mref->m;
-  multi_thread_arg *args = R_Calloc(1, multi_thread_arg);
-  args->multi = multi;
-  // TODO: add SEXP to an internal precious list for safety
-  args->ptr = pool_ptr;
-  SEXP out, xptr;
+SEXP R_multi_async(SEXP pool_ptr, SEXP cv) {
 
   if (thread_create == NULL) {
     SEXP str, call;
@@ -97,6 +96,8 @@ SEXP R_multi_async(SEXP pool_ptr) {
     Rf_eval(call, R_BaseEnv);
     UNPROTECT(2);
     thread_create = (SEXP (*)(void (*func)(void *), void *arg)) R_GetCCallable("nanonext", "rnng_thread_create");
+    cv_lock = (SEXP (*)(SEXP)) R_GetCCallable("nanonext", "rnng_cv_lock");
+    cv_unlock = (SEXP (*)(SEXP)) R_GetCCallable("nanonext", "rnng_cv_unlock");
   }
 
   if (eln2 == NULL) {
@@ -108,9 +109,21 @@ SEXP R_multi_async(SEXP pool_ptr) {
     eln2 = (void (*)(void (*)(void *), void *, double, int)) R_GetCCallable("later", "execLaterNative2");
   }
 
+  if (TYPEOF(cv) != EXTPTRSXP || EXTPTR_TAG(cv) != Rf_install("cv"))
+    Rf_error("'cv' is not a valid Condition Variable");
+
+  multiref *mref = get_multiref(pool_ptr);
+  CURLM *multi = mref->m;
+  multi_thread_arg *args = R_Calloc(1, multi_thread_arg);
+  args->multi = multi;
+  // TODO: consider preserving SEXPs
+  args->ptr = pool_ptr;
+  args->cv = cv;
+  SEXP out, xptr;
+
   PROTECT(out = curl_thread_create(multi_async_thread, args));
   xptr = R_MakeExternalPtr(args, R_NilValue, R_NilValue);
-  Rf_setAttrib(out, R_ModeSymbol, xptr);
+  Rf_setAttrib(out, R_MissingArg, xptr);
   R_RegisterCFinalizerEx(xptr, thread_arg_finalizer, TRUE);
 
   UNPROTECT(1);

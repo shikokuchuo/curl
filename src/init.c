@@ -29,7 +29,7 @@ extern SEXP R_handle_setheaders(SEXP, SEXP);
 extern SEXP R_handle_setopt(SEXP, SEXP, SEXP);
 extern SEXP R_option_types(void);
 extern SEXP R_multi_add(SEXP, SEXP, SEXP, SEXP, SEXP);
-extern SEXP R_multi_async(SEXP);
+extern SEXP R_multi_async(SEXP, SEXP);
 extern SEXP R_multi_cancel(SEXP);
 extern SEXP R_multi_fdset(SEXP);
 extern SEXP R_multi_list(SEXP);
@@ -69,7 +69,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"R_handle_setopt",       (DL_FUNC) &R_handle_setopt,       3},
     {"R_option_types",        (DL_FUNC) &R_option_types,        0},
     {"R_multi_add",           (DL_FUNC) &R_multi_add,           5},
-    {"R_multi_async",         (DL_FUNC) &R_multi_async,         1},
+    {"R_multi_async",         (DL_FUNC) &R_multi_async,         2},
     {"R_multi_cancel",        (DL_FUNC) &R_multi_cancel,        1},
     {"R_multi_fdset",         (DL_FUNC) &R_multi_fdset,         1},
     {"R_multi_list",          (DL_FUNC) &R_multi_list,          1},
@@ -92,6 +92,8 @@ void switch_to_openssl_on_vista(void);
 CURLM *shared_multi_handle = NULL;
 void (*eln2)(void (*)(void *), void *, double, int) = NULL;
 SEXP (*thread_create)(void (*)(void *), void *) = NULL;
+SEXP (*cv_lock)(SEXP) = NULL;
+SEXP (*cv_unlock)(SEXP) = NULL;
 
 attribute_visible void R_init_curl(DllInfo *info) {
   switch_to_openssl_on_vista();

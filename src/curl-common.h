@@ -91,3 +91,5 @@ SEXP reflist_remove(SEXP x, SEXP target);
 extern void (*eln2)(void (*)(void *), void *, double, int);
 /* threads from nanonext (for the time being) */
 extern SEXP (*thread_create)(void (*)(void *), void *);
+extern SEXP (*cv_lock)(SEXP);
+extern SEXP (*cv_unlock)(SEXP);
