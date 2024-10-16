@@ -38,11 +38,13 @@ SEXP curl_thread_create(void (*func)(void *), void *arg) {
 }
 
 static void invoke_multi_run(void *arg) {
-  SEXP func, call;
+  SEXP func, call, pool = (SEXP) arg;
+  Rf_classgets(pool, Rf_mkString("curl_multi"));
   PROTECT(func = Rf_lang3(R_DoubleColonSymbol, Rf_install("curl"), Rf_install("multi_run")));
-  PROTECT(call = Rf_lang4(func, Rf_ScalarInteger(0), Rf_ScalarLogical(0), (SEXP) arg));
+  PROTECT(call = Rf_lang4(func, Rf_ScalarInteger(0), Rf_ScalarLogical(0), pool));
   Rf_eval(call, R_GlobalEnv);
   UNPROTECT(2);
+  Rf_setAttrib(pool, R_MissingArg, R_NilValue);
   Rprintf("called from later: async ops complete\n");
 }
 
@@ -108,12 +110,13 @@ SEXP R_multi_async(SEXP pool_ptr) {
     eln2 = (void (*)(void (*)(void *), void *, double, int)) R_GetCCallable("later", "execLaterNative2");
   }
 
-  PROTECT(out = curl_thread_create(multi_async_thread, args));
+  out = curl_thread_create(multi_async_thread, args);
+  Rf_setAttrib(pool_ptr, R_MissingArg, out);
   xptr = R_MakeExternalPtr(args, R_NilValue, R_NilValue);
-  Rf_setAttrib(out, R_ModeSymbol, xptr);
+  Rf_setAttrib(out, R_MissingArg, xptr);
   R_RegisterCFinalizerEx(xptr, thread_arg_finalizer, TRUE);
+  Rf_classgets(pool_ptr, R_NilValue);
 
-  UNPROTECT(1);
   return out;
 
 }

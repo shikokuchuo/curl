@@ -18,12 +18,11 @@ An external pointer to the created thread.
 completion asynchronously in a non-blocking manner.
 }
 \details{
-This function does not default to the global pool. This helps to ensure that
-other functions are not unintentionally called on it concurrently, as it is
-not safe to do so.
-
-Once this function is called, further actions must not be made on the
-supplied pool until all async operations have completed.
+This function does not default to the global pool and requires a custom pool
+to be passed to it. This is as the pool is made temporarily unavailable to
+other functions whilst async operations are ongoing. Attempting to use the
+pool in such a case will result in the error
+\code{inherits(pool, "curl_multi") is not TRUE}.
 }
 \examples{
 \dontshow{if (requireNamespace("later", quietly = TRUE)) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
