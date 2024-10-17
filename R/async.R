@@ -15,7 +15,8 @@
 #' and there is no default.
 #' @inheritParams multi
 #'
-#' @return For async_run: invisibly, an external pointer to the created thread.
+#' @return For \code{async_run}: invisible NULL. For other functions, the return
+#'   value of their multi equivalents.
 #'
 #' @examplesIf requireNamespace("later", quietly = TRUE) && requireNamespace("nanonext", quietly = TRUE)
 #' success <- function(x) results <<- append(results, list(x))

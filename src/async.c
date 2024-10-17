@@ -60,6 +60,8 @@ static void multi_async_thread(void *arg) {
   int total_pending = -1;
   int maxfd = -1;
   int count = 0;
+  long timeo;
+  struct timeval timeout;
   CURLMcode res;
   fd_set fdread, fdwrite, fdexc;
 
@@ -82,8 +84,18 @@ static void multi_async_thread(void *arg) {
     // Get file descriptors for active sockets
     res = curl_multi_fdset(multi, &fdread, &fdwrite, &fdexc, &maxfd);
 
+    curl_multi_timeout(multi, &timeo);
+    if (timeo == -1) {
+      timeout.tv_sec = 1;
+      timeout.tv_usec = 0;
+    } else {
+      timeout.tv_sec = timeo / 1000;
+      timeout.tv_usec = (timeo % 1000) * 1000;
+    }
+
     if (maxfd >= 0) {
-      select(maxfd + 1, &fdread, &fdwrite, &fdexc, NULL);
+      if (select(maxfd + 1, &fdread, &fdwrite, &fdexc, &timeout) < 0)
+        printf_safe(1, "select error\n");
     }
     count++;
 
@@ -146,6 +158,6 @@ SEXP R_multi_async(SEXP pool_ptr, SEXP cv) {
   Rf_setAttrib(pool_ptr, R_MissingArg, out);
 
   UNPROTECT(1);
-  return out;
+  return R_NilValue;
 
 }

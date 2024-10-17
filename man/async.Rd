@@ -33,7 +33,8 @@ to \code{NULL} the entire response gets buffered internally and returned by in
 the \code{done} callback (which is usually what you want).}
 }
 \value{
-For async_run: invisibly, an external pointer to the created thread.
+For \code{async_run}: invisible NULL. For other functions, the return
+value of their multi equivalents.
 }
 \description{
 Async family functions are an alternative to the multi family that run
