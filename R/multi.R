@@ -199,6 +199,5 @@ print.curl_multi <- function(x, ...){
 multi_fdset <- function(pool = NULL){
   if(is.null(pool))
     pool <- multi_default()
-  stopifnot(inherits(pool, c("curl_multi", "curl")))
   .Call(R_multi_fdset, pool)
 }
