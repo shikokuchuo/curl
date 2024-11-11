@@ -15,12 +15,19 @@ multiref *get_multiref(SEXP ptr){
   return mref;
 }
 
-CURLM *get_curlm(SEXP con){
-  SEXP ptr = R_ExternalPtrProtected(Rf_getAttrib(con, Rf_install("conn_id")));
-  CURLM *m = (CURLM*) R_ExternalPtrAddr(ptr);
-  if(!m)
-    Rf_error("CURLM pointer is dead");
-  return m;
+/* retrieves CURLM from connections as well as pools */
+CURLM *get_curlm(SEXP ptr){
+  CURLM *multi;
+  if(Rf_inherits(ptr, "curl")){
+    ptr = R_ExternalPtrProtected(Rf_getAttrib(ptr, Rf_install("conn_id")));
+    multi = (CURLM*) R_ExternalPtrAddr(ptr);
+    if(!multi)
+      Rf_error("CURLM pointer is dead");
+  } else {
+    multiref *mref = get_multiref(ptr);
+    multi = mref->m;
+  }
+  return multi;
 }
 
 void multi_release(reference *ref){
@@ -255,13 +262,7 @@ SEXP R_multi_list(SEXP pool_ptr){
 }
 
 SEXP R_multi_fdset(SEXP pool_ptr){
-  CURLM *multi;
-  if(Rf_inherits(pool_ptr, "curl")){
-    multi = get_curlm(pool_ptr);
-  } else {
-    multiref *mref = get_multiref(pool_ptr);
-    multi = mref->m;
-  }
+  CURLM *multi = get_curlm(pool_ptr);
   fd_set read_fd_set, write_fd_set, exc_fd_set;
   int max_fd, i, num_read = 0, num_write = 0, num_exc = 0;
   int *pread, *pwrite, *pexc;
