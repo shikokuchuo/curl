@@ -115,19 +115,16 @@ static void fetchdata(request *req) {
 static size_t rcurl_read(void *target, size_t sz, size_t ni, Rconnection con) {
   request *req = (request*) con->private;
   size_t req_size = sz * ni;
-
-  if (!con->blocking || req->partial) {
-    // If the connection is non-blocking (or using curl_fetch_stream()), always
-    // fetch data first (as likely to be called when file descriptor has been
-    // indicated ready for reading). Then just return what's available without
-    // waiting.
-    fetchdata(req);
-    size_t total_size = pop(target, req_size, req);
+  size_t total_size = pop(target, req_size, req);
+  if (total_size > 0 && (!con->blocking || req->partial)) {
+    // If we can return data without waiting, and the connection is
+    // non-blocking (or using curl_fetch_stream()), do so.
+    // This ensures that bytes we already received get flushed
+    // to the target buffer before a connection error.
     con->incomplete = req->has_more || req->size;
     return total_size;
   }
 
-  size_t total_size = pop(target, req_size, req);
   while((req_size > total_size) && req->has_more) {
     int numfds;
     if(con->blocking)
@@ -135,6 +132,9 @@ static size_t rcurl_read(void *target, size_t sz, size_t ni, Rconnection con) {
     fetchdata(req);
     total_size += pop((char*)target + total_size, (req_size-total_size), req);
 
+    //return less than requested data for non-blocking connections, or curl_fetch_stream()
+    if(!con->blocking || req->partial)
+      break;
   }
   con->incomplete = req->has_more || req->size;
   return total_size;
