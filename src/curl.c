@@ -290,9 +290,8 @@ SEXP R_curl_connection(SEXP url, SEXP ptr, SEXP partial) {
   /* protect the handle */
   (req->ref->refCount)++;
 
-  SEXP xptr;
-  PROTECT(xptr = R_MakeExternalPtr(req->manager, R_NilValue, R_NilValue));
-  SETCDR(Rf_getAttrib(rc, Rf_install("conn_id")), xptr); // SET EXTPTR_PROT
+  SEXP xptr = PROTECT(R_MakeExternalPtr(req->manager, R_NilValue, R_NilValue));
+  R_SetExternalPtrProtected(Rf_getAttrib(rc, Rf_install("conn_id")), xptr);
 
   UNPROTECT(2);
   return rc;

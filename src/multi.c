@@ -1,27 +1,6 @@
 #include "curl-common.h"
 #include <time.h>
 
-/* the RConnection API is experimental and subject to change */
-#include <R_ext/Connections.h>
-#if ! defined(R_CONNECTIONS_VERSION) || R_CONNECTIONS_VERSION != 1
-#error "Unsupported connections API version"
-#endif
-
-typedef struct {
-  char *url;
-  char *buf;
-  char *cur;
-  int has_data;
-  int has_more;
-  int used;
-  int partial;
-  size_t size;
-  size_t limit;
-  CURLM *manager;
-  CURL *handle;
-  reference *ref;
-} request;
-
 /* Notes:
  *  - First check for unhandled messages in curl_multi_info_read() before curl_multi_perform()
  *  - Use Rf_eval() to callback instead of R_tryEval() to propagate interrupt or error back to C
@@ -34,6 +13,14 @@ multiref *get_multiref(SEXP ptr){
   if(!mref)
     Rf_error("multiref pointer is dead");
   return mref;
+}
+
+CURLM *get_curlm(SEXP con){
+  SEXP ptr = R_ExternalPtrProtected(Rf_getAttrib(con, Rf_install("conn_id")));
+  CURLM *m = (CURLM*) R_ExternalPtrAddr(ptr);
+  if(!m)
+    Rf_error("CURLM pointer is dead");
+  return m;
 }
 
 void multi_release(reference *ref){
@@ -269,12 +256,11 @@ SEXP R_multi_list(SEXP pool_ptr){
 
 SEXP R_multi_fdset(SEXP pool_ptr){
   CURLM *multi;
-  if (Rf_inherits(pool_ptr, "curl_multi")) {
+  if(Rf_inherits(pool_ptr, "curl")){
+    multi = get_curlm(pool_ptr);
+  } else {
     multiref *mref = get_multiref(pool_ptr);
     multi = mref->m;
-  } else {
-    SEXP xptr = Rf_getAttrib(pool_ptr, Rf_install("conn_id"));
-    multi = (CURLM *) R_ExternalPtrAddr(R_ExternalPtrProtected(xptr));
   }
   fd_set read_fd_set, write_fd_set, exc_fd_set;
   int max_fd, i, num_read = 0, num_write = 0, num_exc = 0;
