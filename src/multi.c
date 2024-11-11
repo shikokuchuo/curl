@@ -19,7 +19,9 @@ multiref *get_multiref(SEXP ptr){
 CURLM *get_curlm(SEXP ptr){
   CURLM *multi;
   if(Rf_inherits(ptr, "curl")){
-    ptr = R_ExternalPtrProtected(Rf_getAttrib(ptr, Rf_install("conn_id")));
+    ptr = Rf_getAttrib(ptr, Rf_install("conn_id"));
+    if (TYPEOF(ptr) != EXTPTRSXP)
+      Rf_error("pool ptr is not a curl connection");
     multi = (CURLM*) R_ExternalPtrAddr(ptr);
     if(!multi)
       Rf_error("CURLM pointer is dead");

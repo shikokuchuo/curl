@@ -291,10 +291,9 @@ SEXP R_curl_connection(SEXP url, SEXP ptr, SEXP partial) {
   (req->ref->refCount)++;
 
   /* store an accessible reference to the CURLM */
-  SEXP xptr = PROTECT(R_MakeExternalPtr(req->manager, R_NilValue, R_NilValue));
   /* con->ex_ptr is where the 'conn_id' attribute is also stored */
-  R_SetExternalPtrProtected((SEXP) con->ex_ptr, xptr);
+  R_SetExternalPtrAddr((SEXP) con->ex_ptr, req->manager);
 
-  UNPROTECT(2);
+  UNPROTECT(1);
   return rc;
 }
