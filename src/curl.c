@@ -128,7 +128,7 @@ static size_t rcurl_read(void *target, size_t sz, size_t ni, Rconnection con) {
   while((req_size > total_size) && req->has_more) {
     int numfds;
     massert(curl_multi_wait(req->manager, NULL, 0, con->blocking ? 1000 : 10, &numfds));
-
+    REprintf("Got here\n");
     fetchdata(req);
     total_size += pop((char*)target + total_size, (req_size-total_size), req);
 
